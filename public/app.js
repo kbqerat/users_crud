@@ -55,6 +55,14 @@ const archivesCount     = document.getElementById('archives-count');
 const archivesList      = document.getElementById('archives-list');
 const archivesEmpty     = document.getElementById('archives-empty');
 const archivesSkeleton  = document.getElementById('archives-skeleton');
+const archivesToggle    = document.getElementById('archives-toggle');
+const archivesBody      = document.getElementById('archives-body');
+const archivesChevron   = document.getElementById('archives-chevron');
+const deleteAllBtn      = document.getElementById('delete-all-btn');
+const deleteAllOverlay  = document.getElementById('delete-all-overlay');
+const cancelDeleteAll   = document.getElementById('cancel-delete-all');
+const confirmDeleteAll  = document.getElementById('confirm-delete-all');
+const deleteAllCount    = document.getElementById('delete-all-count');
 const deleteUserName    = document.getElementById('delete-user-name');
 const shortcutsBtn      = document.getElementById('shortcuts-btn');
 const shortcutsOverlay  = document.getElementById('shortcuts-overlay');
@@ -73,6 +81,19 @@ const detailOverlay = document.getElementById('detail-overlay');
 const closeDetail   = document.getElementById('close-detail');
 const detailEditBtn = document.getElementById('detail-edit-btn');
 const detailCopyBtn = document.getElementById('detail-copy-btn');
+const editOverlay   = document.getElementById('edit-overlay');
+const editForm      = document.getElementById('edit-form');
+const editUserId    = document.getElementById('edit-user-id');
+const editName      = document.getElementById('edit-name');
+const editEmail     = document.getElementById('edit-email');
+const editAge       = document.getElementById('edit-age');
+const editGenre     = document.getElementById('edit-genre');
+const editSaveBtn   = document.getElementById('edit-save-btn');
+const editCancelBtn = document.getElementById('edit-cancel-btn');
+const editClose     = document.getElementById('edit-close');
+const editAvatar    = document.getElementById('edit-avatar');
+const editModalName = document.getElementById('edit-modal-name');
+const editModalEmail= document.getElementById('edit-modal-email');
 
 const statTotal  = document.getElementById('stat-total');
 const statHommes = document.getElementById('stat-hommes');
@@ -272,6 +293,32 @@ clearLogBtn.addEventListener('click', () => {
   showToast('Historique effacé', 'info');
 });
 
+archivesToggle.addEventListener('click', () => {
+  const open = archivesBody.style.display !== 'none';
+  archivesBody.style.display = open ? 'none' : 'block';
+  archivesChevron.classList.toggle('open', !open);
+});
+
+deleteAllBtn.addEventListener('click', () => {
+  const count = allUsers.length;
+  if (!count) return showToast('Aucun utilisateur à supprimer', 'error');
+  deleteAllCount.textContent = count;
+  deleteAllOverlay.style.display = 'flex';
+});
+cancelDeleteAll.addEventListener('click', () => deleteAllOverlay.style.display = 'none');
+deleteAllOverlay.addEventListener('click', e => { if (e.target === deleteAllOverlay) deleteAllOverlay.style.display = 'none'; });
+confirmDeleteAll.addEventListener('click', async () => {
+  deleteAllOverlay.style.display = 'none';
+  confirmDeleteAll.disabled = true;
+  for (const user of [...allUsers]) {
+    await fetch(`${API}/${user.id}`, { method: 'DELETE' });
+    addActivity('delete', user.name);
+  }
+  confirmDeleteAll.disabled = false;
+  showToast('Tous les utilisateurs supprimés', 'info');
+  fetchUsers(); fetchArchived();
+});
+
 shortcutsBtn.addEventListener('click', () => shortcutsOverlay.style.display = 'flex');
 closeShortcuts.addEventListener('click', () => shortcutsOverlay.style.display = 'none');
 shortcutsOverlay.addEventListener('click', e => { if (e.target === shortcutsOverlay) shortcutsOverlay.style.display = 'none'; });
@@ -282,6 +329,7 @@ document.addEventListener('keydown', e => {
 
   if (e.key === 'Escape') {
     if (shortcutsOverlay.style.display === 'flex') { shortcutsOverlay.style.display = 'none'; return; }
+    if (editOverlay.style.display === 'flex')      { closeEditModal(); return; }
     if (detailOverlay.style.display === 'flex')    { detailOverlay.style.display = 'none'; return; }
     if (modalOverlay.style.display === 'flex')     { modalOverlay.style.display = 'none'; return; }
     if (typing) { document.activeElement.blur(); return; }
@@ -640,15 +688,13 @@ form.addEventListener('submit', async e => {
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> En cours…';
   try {
-    if (id) {
-      await fetch(`${API}/${id}`, { method: 'PUT',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      showToast('Utilisateur modifié');
-      addActivity('edit', body.name);
-    } else {
-      await fetch(API,           { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      showToast('Utilisateur ajouté');
-      addActivity('add', body.name);
+    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (res.status === 409) {
+      setFieldError('email', 'Cet email est déjà utilisé');
+      return;
     }
+    showToast('Utilisateur ajouté');
+    addActivity('add', body.name);
     resetForm();
     sidebar.classList.remove('open');
     mobileToggleIcon.className = 'fa-solid fa-plus';
@@ -659,17 +705,25 @@ form.addEventListener('submit', async e => {
 });
 
 function startEdit(user) {
-  userIdInput.value  = user.id;
-  nameInput.value    = user.name;
-  emailInput.value   = user.email;
-  ageInput.value     = user.age ?? '';
-  genreInput.value   = user.genre ?? '';
-  formTitle.innerHTML = '<i class="fa-solid fa-pen"></i> Modifier';
-  submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Enregistrer';
-  cancelBtn.style.display = 'inline-flex';
   detailOverlay.style.display = 'none';
-  nameInput.focus();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  editUserId.value = user.id;
+  editName.value   = user.name;
+  editEmail.value  = user.email;
+  editAge.value    = user.age ?? '';
+  editGenre.value  = user.genre ?? '';
+  ['edit-name','edit-email','edit-age','edit-genre'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('invalid','valid');
+    document.getElementById('edit-err-' + id.replace('edit-',''))?.textContent && (document.getElementById('edit-err-' + id.replace('edit-','')).textContent = '');
+  });
+  const initials    = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+  const avatarClass = user.genre === 'Masculin' ? 'male' : user.genre === 'Féminin' ? 'female' : 'none';
+  editAvatar.textContent = initials;
+  editAvatar.className   = `edit-avatar ${avatarClass}`;
+  editModalName.textContent  = user.name;
+  editModalEmail.textContent = user.email;
+  editOverlay.style.display  = 'flex';
+  setTimeout(() => editName.focus(), 50);
 }
 
 function openDetail(user) {
@@ -693,6 +747,68 @@ function openDetail(user) {
 closeDetail.addEventListener('click', () => detailOverlay.style.display = 'none');
 detailOverlay.addEventListener('click', e => { if (e.target === detailOverlay) detailOverlay.style.display = 'none'; });
 detailEditBtn.addEventListener('click', () => { if (currentDetail) startEdit(currentDetail); });
+
+function closeEditModal() { editOverlay.style.display = 'none'; }
+editClose.addEventListener('click', closeEditModal);
+editCancelBtn.addEventListener('click', closeEditModal);
+editOverlay.addEventListener('click', e => { if (e.target === editOverlay) closeEditModal(); });
+
+editEmail.addEventListener('blur', async () => {
+  const val = editEmail.value.trim();
+  if (!val || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return;
+  const res  = await fetch(`${API}/check-email?email=${encodeURIComponent(val)}&excludeId=${editUserId.value}`);
+  const data = await res.json();
+  if (data.exists) {
+    editEmail.classList.add('invalid');
+    document.getElementById('edit-err-email').textContent = 'Cet email est déjà utilisé';
+  } else {
+    editEmail.classList.remove('invalid');
+    document.getElementById('edit-err-email').textContent = '';
+  }
+});
+['edit-name','edit-email','edit-age'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById(id).classList.remove('invalid','valid');
+    document.getElementById('edit-err-' + id.replace('edit-','')).textContent = '';
+  });
+});
+editGenre.addEventListener('change', () => {
+  editGenre.classList.remove('invalid');
+  document.getElementById('edit-err-genre').textContent = '';
+});
+
+editForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  let ok = true;
+  const name  = editName.value.trim();
+  const email = editEmail.value.trim();
+  const age   = editAge.value;
+  const genre = editGenre.value;
+  if (name.length < 2) { editName.classList.add('invalid'); document.getElementById('edit-err-name').textContent = 'Nom trop court (min 2 caractères)'; ok = false; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { editEmail.classList.add('invalid'); document.getElementById('edit-err-email').textContent = 'Email invalide'; ok = false; }
+  if (!age || Number(age) < 1 || Number(age) > 120) { editAge.classList.add('invalid'); document.getElementById('edit-err-age').textContent = 'Âge entre 1 et 120'; ok = false; }
+  if (!genre) { editGenre.classList.add('invalid'); document.getElementById('edit-err-genre').textContent = 'Genre requis'; ok = false; }
+  if (!ok) return;
+  editSaveBtn.disabled = true;
+  editSaveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> En cours…';
+  try {
+    const res = await fetch(`${API}/${editUserId.value}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, age: Number(age), genre })
+    });
+    if (res.status === 409) {
+      editEmail.classList.add('invalid');
+      document.getElementById('edit-err-email').textContent = 'Cet email est déjà utilisé';
+      return;
+    }
+    closeEditModal();
+    addActivity('edit', name);
+    showToast('Utilisateur modifié');
+    fetchUsers();
+  } catch { showToast('Erreur lors de la sauvegarde', 'error'); }
+  finally { editSaveBtn.disabled = false; editSaveBtn.innerHTML = '<i class="fa-solid fa-check"></i> Enregistrer'; }
+});
 detailCopyBtn.addEventListener('click', () => {
   if (!currentDetail) return;
   navigator.clipboard.writeText(currentDetail.email).then(() => showToast('Email copié !', 'info'));
@@ -734,7 +850,12 @@ async function fetchArchived() {
   archivesSkeleton.style.display = 'none';
   archivesCount.textContent = list.length;
   if (!list.length) { archivesEmpty.style.display = 'block'; archivesCard.style.display = 'none'; return; }
+  const wasHidden = archivesCard.style.display === 'none';
   archivesCard.style.display = 'block';
+  if (wasHidden) {
+    archivesBody.style.display = 'none';
+    archivesChevron.classList.remove('open');
+  }
   archivesList.innerHTML = list.map(u => {
     const initials    = u.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const avatarClass = u.genre === 'Masculin' ? 'male' : u.genre === 'Féminin' ? 'female' : 'none';

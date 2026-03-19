@@ -223,6 +223,12 @@ tbody tr:hover { background: var(--surface2); }
   border: 2px solid var(--surface); pointer-events: all;
 }
 
+.archives-card-wrap { margin-top: 1.5rem; }
+.archives-toggle { cursor: pointer; user-select: none; }
+.archives-toggle:hover { background: var(--bg-hover); border-radius: var(--radius) var(--radius) 0 0; }
+.archives-chevron { transition: transform 0.25s ease; color: var(--text-muted); font-size: 0.8rem; }
+.archives-chevron.open { transform: rotate(180deg); }
+.archives-body { border-top: 1px solid var(--border); }
 .archives-count { background: var(--warning-light); color: #92400e; font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 999px; }
 .archives-list { display: flex; flex-direction: column; }
 .archive-item {
@@ -304,6 +310,15 @@ tbody tr:hover { background: var(--surface2); }
 .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(3px); animation: fadeIn 0.15s ease; }
 .modal { background: var(--surface); border-radius: var(--radius); padding: 2rem; width: 380px; text-align: center; box-shadow: var(--shadow-lg); animation: slideUp 0.2s ease; position: relative; }
 .modal-detail { width: 420px; }
+.modal-edit { width: 520px; text-align: left; max-height: 90vh; overflow-y: auto; }
+.edit-modal-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1.1rem; border-bottom: 1px solid var(--border); }
+.edit-avatar { width: 48px; height: 48px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 800; flex-shrink: 0; }
+.edit-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+.edit-form-grid .form-group { margin-bottom: 1rem; }
+.edit-form-grid .form-group:nth-child(1) { grid-column: 1; }
+.edit-form-grid .form-group:nth-child(2) { grid-column: 2; }
+.edit-form-grid .form-group:nth-child(3) { grid-column: 1; }
+.edit-form-grid .form-group:nth-child(4) { grid-column: 2; }
 .modal-close { position: absolute; top: 1rem; right: 1rem; background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.3rem; transition: color 0.15s; }
 .modal-close:hover { color: var(--danger); }
 .modal-icon { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin: 0 auto 1rem; }
@@ -541,13 +556,15 @@ kbd {
   .pagination { flex-direction: column; align-items: center; gap: 0.5rem; padding: 0.85rem; }
 
   .modal-overlay { align-items: flex-end; padding: 0; }
-  .modal, .modal-detail {
+  .modal, .modal-detail, .modal-edit {
     width: 100%;
     max-width: 100%;
     border-radius: var(--radius) var(--radius) 0 0;
     padding: 1.5rem 1.25rem 2rem;
     animation: slideUpModal 0.28s ease;
   }
+  .edit-form-grid { grid-template-columns: 1fr; }
+  .edit-form-grid .form-group { grid-column: 1 !important; }
   .detail-grid { grid-template-columns: 1fr 1fr; }
   .modal-actions { gap: 0.5rem; }
 
